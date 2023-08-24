@@ -1,10 +1,12 @@
 package com.workintech.dependency.rest;
 
+import com.workintech.dependency.mapping.DeveloperResponse;
 import com.workintech.dependency.model.Developer;
 import com.workintech.dependency.model.JuniorDeveloper;
 import com.workintech.dependency.model.MidDeveloper;
 import com.workintech.dependency.model.SeniorDeveloper;
 import com.workintech.dependency.tax.Taxable;
+import com.workintech.dependency.validation.DeveloperValidation;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -40,39 +42,56 @@ public class DeveloperController {
     public List<Developer> get() {
         return developers.values().stream().toList();
     }
+
     @GetMapping("/{id}")
-    public Developer getById(@PathVariable int id) {
-        return developers.get(id);
+    public DeveloperResponse getById(@PathVariable int id) {
+        if (DeveloperValidation.validateId(id)) {
+            return new DeveloperResponse(developers.get(id), "Böyle bir id bulunamadı.", 400);
+        }
+        return new DeveloperResponse(null, "Başarılı.", 200);
     }
 
     @PostMapping("/")
-    public Developer createDeveloper(@RequestBody Developer dev) {
+    public DeveloperResponse createDeveloper(@RequestBody Developer dev) {
         Developer newDeveloper = createDeveloperWithEnum(dev);
-        if ( newDeveloper == null) {
-            //TODO girdiğiniz bilgileri kontrol ediniz.
+        if (newDeveloper == null) {
+            return new DeveloperResponse(null, "Experience değerini kontrol et.", 400);
+        }
+        if (developers.containsKey(dev.getId())) {
+            return new DeveloperResponse(null, "Bu id daha önce alınmış.", 400);
+        }
+        if (!DeveloperValidation.validateDeveloperProperties(dev)) {
+            return new DeveloperResponse(null, "Developer bilgilerinde yanlışlık var.", 400);
         }
         developers.put(dev.getId(), newDeveloper);
-        return developers.get(dev.getId());
+        return new DeveloperResponse(developers.get(dev.getId()), "Developer successfully created..", 201);
     }
+
     @PutMapping("/{id}")
-    public Developer updateDeveloper(@PathVariable int id, @RequestBody Developer dev) {
-        if(!developers.containsKey(id)) {
-            //TODO böyle bir kullanıcı yok...
+    public DeveloperResponse updateDeveloper(@PathVariable int id, @RequestBody Developer dev) {
+        if (!developers.containsKey(id)) {
+            return new DeveloperResponse(null, "Böyle bir kullanıcı bulunamadı.", 400);
         }
         dev.setId(id);
         Developer updatedDeveloper = createDeveloperWithEnum(dev);
+        if (updatedDeveloper == null) {
+            return new DeveloperResponse(null, "Experience değerini kontrol et.", 400);
+        }
+        if (!DeveloperValidation.validateDeveloperProperties(dev)) {
+            return new DeveloperResponse(null, "Developer bilgilerinde yanlışlık var.", 400);
+        }
         developers.put(id, updatedDeveloper);
-        return updatedDeveloper;
+        return new DeveloperResponse(updatedDeveloper, "Developer successfully updated..", 200);
     }
 
     @DeleteMapping("/{id}")
-    public Developer deleteDeveloper(@PathVariable int id) {
+    public DeveloperResponse deleteDeveloper(@PathVariable int id) {
         if (!developers.containsKey(id)) {
-            //TODO böyle bir kullanıcı yok..
+            return new DeveloperResponse(null, "Böyle bir kullanıcı bulunamadı.", 400);
         }
         Developer deletedDeveloper = developers.get(id);
         developers.remove(id);
-        return deletedDeveloper;
+        return new DeveloperResponse(deletedDeveloper, "Developer successfully deleted..", 200);
     }
 
     public Developer createDeveloperWithEnum(Developer dev) {
